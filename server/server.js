@@ -7,9 +7,6 @@ import express from "express";
 import path from "path";
 import bodyParser from "body-parser";
 
-const healthRoutes = require("./routes/health-route");
-const swaggerRoutes = require("./routes/swagger-route");
-
 // Configure Hocuspocus
 const server = Server.configure({
   async connected() {
@@ -47,10 +44,6 @@ app.ws("status", (websocket, request) => {
 // enable parsing of http request body
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-
-// routes and api calls
-app.use("/health", healthRoutes);
-app.use("/swagger", swaggerRoutes);
 
 // default path to serve up index.html (single page application)
 app.all("", (req, res) => {
