@@ -11,8 +11,9 @@ RUN npm install --only=prod
 COPY server /app/server
 
 ENV NODE_ENV production
-ENV PORT 4000
+ENV PORT 3000
 
-EXPOSE 4000
+EXPOSE 3000
+EXPOSE 3001
 
 CMD ["npm", "start"]

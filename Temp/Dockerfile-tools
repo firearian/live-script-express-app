@@ -3,9 +3,10 @@ FROM registry.access.redhat.com/ubi8/ubi
 RUN curl -sL https://rpm.nodesource.com/setup_12.x | bash -
 RUN yum install -y nodejs
 
-ENV PORT 4000
+ENV PORT 3000
 ENV NODE_HEAPDUMP_OPTIONS nosignal
-EXPOSE 4000
+EXPOSE 3000
+EXPOSE 3001
 EXPOSE 9229
 
 RUN mkdir /app
