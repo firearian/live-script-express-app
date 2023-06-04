@@ -9,7 +9,7 @@ const healthRoutes = require("./routes/health-route");
 const swaggerRoutes = require("./routes/swagger-route");
 
 const server = Server.configure({
-  port: 3001,
+  port: 3000,
   async connected() {
     console.log("connections:", server.getConnectionsCount());
   },
@@ -57,11 +57,13 @@ app.all("", (req, res) => {
 });
 
 // start node server
-const port = process.env.PORT || 4000;
-app.listen(port, () => {
-  console.log(`App UI available http://localhost:${port}`);
-  console.log(`Swagger UI available http://localhost:${port}/swagger/api-docs`);
-});
+// const port = process.env.PORT || 4000;
+// app.listen(port, () => {
+//   console.log(`App UI available http://localhost:${port}`);
+//   console.log(`Swagger UI available http://localhost:${port}/swagger/api-docs`);
+// });
+
+server.listen();
 
 // error handler for unmatched routes or api calls
 // app.use((req, res, next) => {

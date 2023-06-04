@@ -9,7 +9,6 @@ COPY public ./public
 RUN npm install
 
 ENV NODE_ENV production
-ENV WDS_SOCKET_PORT 3000
 ENV PORT 3000
 
 EXPOSE 3000
