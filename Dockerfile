@@ -7,7 +7,7 @@ RUN mkdir /app
 WORKDIR /app
 
 COPY package.json /app
-RUN npm install --only=prod
+RUN npm install
 COPY server /app/server
 COPY public /app/public
 
