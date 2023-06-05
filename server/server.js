@@ -1,73 +1,88 @@
 // import dependencies and initialize express
 const express = require("express");
-const path = require("path");
-const bodyParser = require("body-parser");
 const expressWebsockets = require("express-ws");
-const { Server } = require("@hocuspocus/server");
-
-const healthRoutes = require("./routes/health-route");
-const swaggerRoutes = require("./routes/swagger-route");
-
-const server = Server.configure({
-  port: 3000,
-  async connected() {
-    console.log("connections:", server.getConnectionsCount());
+const { Hocuspocus } = require("@hocuspocus/server");
+const { Redis } = require("@hocuspocus/extension-redis");
+const { Logger } = require("@hocuspocus/extension-logger");
+const { Database } = require("@hocuspocus/extension-database");
+const { MongoClient, ServerApiVersion } = require("mongodb");
+const { Doc } = require("yjs");
+const uri =
+  "mongodb+srv://live-script-admin:7RaPPIv2nCVPiNvAE@live-script.5ukrnfl.mongodb.net/?retryWrites=true&w=majority";
+const dbName = "live-script";
+// Create a MongoClient with a MongoClientOptions object to set the Stable API version
+const MDBclient = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
   },
 });
-// Setup your express instance using the express-ws extension
-const { app } = expressWebsockets(express());
-// Add a websocket route for Hocuspocus
-// Note: make sure to include a parameter for the document name.
-// You can set any contextual data like in the onConnect hook
-// and pass it to the handleConnection method.
-app.ws("/collaboration/:document", (websocket, request) => {
-  console.log("ws entered?");
-  const context = {
-    user: {
-      id: 1234,
-      name: "Jane",
-    },
-  };
 
-  server.handleConnection(websocket, request, context);
+const server = new Hocuspocus({
+  extensions: [
+    new Logger(),
+    new Redis({
+      // [required] Hostname of your Redis instance
+      // [required] Port of your Redis instance
+      host: "redis://:aXAGpyN5MSADhMpU0Nlh6s3QJ5U3ekW2@redis-16855.c296.ap-southeast-2-1.ec2.cloud.redislabs.com:16855",
+      port: 16855,
+      priority: 10000,
+      // tls: {
+      //   rejectUnauthorized: false,
+      //   requestCert: true,
+      // },
+    }),
+    new Database({
+      // Return a Promise to retrieve data …
+      fetch: async ({ documentName }) => {
+        await MDBclient.connect();
+        const db = MDBclient.db(dbName);
+        const collection = db.collection("live-script-documents");
+        const document = await collection.findOne({ name: documentName });
+        MDBclient.close();
+        console.log("Mongo DB Data fetched: ", document?.data);
+        return document ? document.buffer : null;
+      },
+      // … and a Promise to store data:
+      store: async ({ documentName, state }) => {
+        await MDBclient.connect();
+        const db = MDBclient.db(dbName);
+        const collection = db.collection("live-script-documents");
+        await collection.updateOne(
+          { name: documentName },
+          { $set: { name: documentName, data: state } },
+          { upsert: true }
+        );
+        console.log("Mongo DB Data stored: ", documentName);
+        MDBclient.close();
+      },
+    }),
+  ],
+  port: 3001,
+  async onChange(data) {},
+  async onLoadDocument(documentName) {
+    await MDBclient.connect();
+    const db = MDBclient.db(dbName);
+    const collection = db.collection("live-script-documents");
+    const document = await collection.findOne({
+      name: documentName.documentName,
+    });
+    MDBclient.close();
+    console.log("Mongo DB Data fetched onload: ", document?.data);
+    return document.buffer || new Doc();
+  },
+  async connected() {
+    console.log("test");
+    console.log(this);
+    console.log("connections:", server.getConnectionsCount());
+  },
+  async onDisconnect() {
+    const users = server.getConnectionsCount();
+    console.log("connections:", users);
+  },
 });
-
-app.ws("status", (websocket, request) => {
-  const context = {
-    user: {
-      id: 1234,
-      name: "Jane",
-    },
-  };
-
-  server.handleConnection(websocket, request, context);
-});
-
-// enable parsing of http request body
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
-
-// routes and api calls
-app.use("/health", healthRoutes);
-app.use("/swagger", swaggerRoutes);
-
-// default path
-app.all("", (req, res) => {
-  res.status(200).send("Hello World");
-});
-
-// start node server
-// const port = process.env.PORT || 4000;
-// app.listen(port, () => {
-//   console.log(`App UI available http://localhost:${port}`);
-//   console.log(`Swagger UI available http://localhost:${port}/swagger/api-docs`);
-// });
 
 server.listen();
 
-// error handler for unmatched routes or api calls
-// app.use((req, res, next) => {
-//   res.sendFile(path.join(__dirname, "../public", "404.html"));
-// });
-
-module.exports = app;
+module.exports = server;
