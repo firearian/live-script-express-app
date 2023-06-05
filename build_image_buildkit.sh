@@ -87,11 +87,14 @@ else
       BUILD_ARGS="${BUILD_ARGS} --opt build-arg:$buildArg"
     fi
   done
-fi
+fiw
+echo 'HERE'
 for varname in $ENV_ARGS; do
     BUILD_ARGS="${BUILD_ARGS} --opt build-arg:$varname"
 done
-echo BUILD_ARGS
+echo 'HERE 1'
+echo ${BUILD_ARGS}
+echo 'HERE 2'
 set -x
 buildctl build \
     --frontend dockerfile.v0 --opt filename=${DOCKER_FILE} --local dockerfile=${DOCKER_ROOT} \
