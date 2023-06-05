@@ -1,15 +1,32 @@
 // import dependencies and initialize express
-const express = require("express");
-const expressWebsockets = require("express-ws");
 const { Hocuspocus } = require("@hocuspocus/server");
 const { Redis } = require("@hocuspocus/extension-redis");
-const { Logger } = require("@hocuspocus/extension-logger");
 const { Database } = require("@hocuspocus/extension-database");
 const { MongoClient, ServerApiVersion } = require("mongodb");
+const { Logger } = require("@hocuspocus/extension-logger");
 const { Doc } = require("yjs");
-const uri =
-  "mongodb+srv://live-script-admin:7RaPPIv2nCVPiNvAE@live-script.5ukrnfl.mongodb.net/?retryWrites=true&w=majority";
-const dbName = "live-script";
+require("dotenv").config();
+
+// Environment Variables Validation
+// Confirm all environmental variables are present
+const requiredEnv = [
+  "DB_PREFIX",
+  "DB_USERNAME",
+  "DB_PASSWORD",
+  "DB_HOSTNAME",
+  "DB_NAME",
+  "COLLECTION_NAME",
+  "REDIS_URI",
+  "REDIS_PORT",
+];
+requiredEnv.forEach((variable) => {
+  if (!process.env[variable]) {
+    throw new Error(`Environment variable ${variable} is required!`);
+  }
+});
+
+const uri = `${process.env.DB_PREFIX}${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOSTNAME}`;
+
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const MDBclient = new MongoClient(uri, {
   serverApi: {
@@ -17,69 +34,71 @@ const MDBclient = new MongoClient(uri, {
     strict: true,
     deprecationErrors: true,
   },
+  // poolSize option is not supported in the free MongoDB versions
+  // poolSize: 10,
+});
+
+let collection;
+MDBclient.connect().then((client) => {
+  const db = client.db(process.env.DB_NAME);
+  collection = db.collection(process.env.COLLECTION_NAME);
 });
 
 const server = new Hocuspocus({
+  port: 3001,
   extensions: [
-    new Logger(),
     new Redis({
-      // [required] Hostname of your Redis instance
-      // [required] Port of your Redis instance
-      host: "redis://:aXAGpyN5MSADhMpU0Nlh6s3QJ5U3ekW2@redis-16855.c296.ap-southeast-2-1.ec2.cloud.redislabs.com:16855",
-      port: 16855,
+      host: process.env.REDIS_URI,
+      port: process.env.REDIS_PORT,
       priority: 10000,
-      // tls: {
-      //   rejectUnauthorized: false,
-      //   requestCert: true,
-      // },
+      onChange: async ({ documentName }) => {
+        console.log("Redis Fetch called");
+      },
     }),
     new Database({
       // Return a Promise to retrieve data …
       fetch: async ({ documentName }) => {
-        await MDBclient.connect();
-        const db = MDBclient.db(dbName);
-        const collection = db.collection("live-script-documents");
-        const document = await collection.findOne({ name: documentName });
-        MDBclient.close();
-        console.log("Mongo DB Data fetched: ", document?.data);
-        return document ? document.buffer : null;
+        try {
+          const document = documentName
+            ? await collection.findOne({ name: documentName })
+            : null;
+          const data = document?.data?.buffer;
+          console.log("Mongo DB Data fetched: ", data);
+          return document ? data : null;
+        } catch (error) {
+          console.error("Error fetching data from MongoDB", error);
+          return null;
+        }
       },
+
       // … and a Promise to store data:
       store: async ({ documentName, state }) => {
-        await MDBclient.connect();
-        const db = MDBclient.db(dbName);
-        const collection = db.collection("live-script-documents");
-        await collection.updateOne(
-          { name: documentName },
-          { $set: { name: documentName, data: state } },
-          { upsert: true }
-        );
-        console.log("Mongo DB Data stored: ", documentName);
-        MDBclient.close();
+        try {
+          await collection.updateOne(
+            { name: documentName },
+            { $set: { name: documentName, data: state } },
+            { upsert: true }
+          );
+          console.log("Mongo DB Data stored: ", documentName);
+        } catch (error) {
+          console.error("Error storing data to MongoDB", error);
+        }
       },
     }),
+    new Logger(),
   ],
-  port: 3001,
-  async onChange(data) {},
-  async onLoadDocument(documentName) {
-    await MDBclient.connect();
-    const db = MDBclient.db(dbName);
-    const collection = db.collection("live-script-documents");
-    const document = await collection.findOne({
-      name: documentName.documentName,
-    });
-    MDBclient.close();
-    console.log("Mongo DB Data fetched onload: ", document?.data);
-    return document.buffer || new Doc();
-  },
+
   async connected() {
-    console.log("test");
-    console.log(this);
     console.log("connections:", server.getConnectionsCount());
   },
+
   async onDisconnect() {
     const users = server.getConnectionsCount();
     console.log("connections:", users);
+  },
+
+  async onDestroy() {
+    MDBclient.close();
   },
 });
 
