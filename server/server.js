@@ -26,6 +26,8 @@ requiredEnv.forEach((variable) => {
 });
 
 const uri = `${process.env.DB_PREFIX}${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOSTNAME}`;
+console.log("URI: ", process.env.DB_PREFIX);
+console.log("URI: ", uri);
 console.log("URI: ", uri.replace(/[\s'"`]+/g, ""));
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const MDBclient = new MongoClient(uri, {
