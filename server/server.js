@@ -26,6 +26,7 @@ requiredEnv.forEach((variable) => {
 });
 
 const uri = `${process.env.DB_PREFIX}${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOSTNAME}`;
+console.log("URI: ", process.env.WS_PORT);
 console.log("URI: ", process.env.DB_PREFIX);
 console.log("URI: ", uri);
 console.log("URI: ", uri.replace(/[\s'"`]+/g, ""));
