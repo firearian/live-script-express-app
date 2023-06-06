@@ -9,3 +9,5 @@ TEMP_*
 node_modules
 Temp
 .env
+.vscode
+coverage
