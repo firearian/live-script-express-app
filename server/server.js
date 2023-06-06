@@ -47,7 +47,7 @@ MDBclient.connect().then((client) => {
 });
 
 const server = new Hocuspocus({
-  port: 3001,
+  port: process.env.WS_PORT,
   extensions: [
     new Redis({
       host: process.env.REDIS_URI,
