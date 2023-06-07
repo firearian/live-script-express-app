@@ -1,20 +1,18 @@
-const chai = require('chai');
-const sinon = require('sinon');
-const sinonChai = require('sinon-chai');
+const chai = require("chai");
+const sinon = require("sinon");
+const sinonChai = require("sinon-chai");
 
-const healthController = require(
-  '../../../server/controllers/health-controller',
-);
-const res = require('express/lib/response');
+const healthController = require("../../../server/controllers/health-controller");
+const res = require("express/lib/response");
 
 const expect = chai.expect;
 const sandbox = sinon.createSandbox();
 chai.use(sinonChai);
 
 // example unit test of health controller
-describe('Test health controller', () => {
+describe("Test health controller", () => {
   before(() => {
-    sandbox.stub(res, 'json');
+    sandbox.stub(res, "json");
   });
 
   afterEach(() => {
@@ -25,12 +23,12 @@ describe('Test health controller', () => {
     sandbox.restore();
   });
 
-  it('should return status UP', () => {
+  it("should return status UP", () => {
     const mockReq = {};
 
     healthController.getHealth(mockReq, res);
     expect(res.json).to.have.been.calledOnceWith({
-      status: 'UP',
+      status: "UP",
     });
   });
 });

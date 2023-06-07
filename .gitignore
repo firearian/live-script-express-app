@@ -11,3 +11,4 @@ Temp
 .env
 .vscode
 coverage
+.nyc_output

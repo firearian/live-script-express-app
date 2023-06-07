@@ -29,7 +29,7 @@ describe("Server", () => {
     const extensions = [redisExtension, databaseExtension, loggerExtension];
 
     const server = new Hocuspocus({
-      port: 3001,
+      port: 3000,
       extensions,
     });
 
@@ -37,21 +37,32 @@ describe("Server", () => {
   });
 
   it("should connect to MongoDB and set the collection", async () => {
-    const server = new Hocuspocus({ port: 3001 });
-    const clientStub = sandbox.stub(MongoClient.prototype, "connect").resolves({
-      db: sandbox.stub().returns({
-        collection: sandbox.stub().returns({}),
-      }),
-    });
+    const collectionStub = sandbox.stub().returns({});
 
+    const dbStub = {
+      collection: collectionStub,
+    };
+
+    const clientStub = {
+      db: sandbox.stub().returns(dbStub),
+    };
+
+    const connectStub = sandbox
+      .stub(MongoClient.prototype, "connect")
+      .resolves(clientStub);
+
+    const server = new Hocuspocus({ port: 3000 });
+
+    // Manually trigger the connection event
     await server.createConnection();
 
-    expect(clientStub).to.have.been.calledOnce;
+    expect(connectStub).to.have.been.calledOnce;
+    expect(collectionStub).to.have.been.calledOnce;
     expect(server.collection).to.exist;
   });
 
   it("should handle Redis onChange event", async () => {
-    const server = new Hocuspocus({ port: 3001 });
+    const server = new Hocuspocus({ port: 3000 });
     const redisExtension = new Redis({});
     server.use(redisExtension);
 
@@ -63,7 +74,7 @@ describe("Server", () => {
   });
 
   it("should fetch data from MongoDB", async () => {
-    const server = new Hocuspocus({ port: 3001 });
+    const server = new Hocuspocus({ port: 3000 });
     const collection = {
       findOne: sandbox
         .stub()
@@ -81,7 +92,7 @@ describe("Server", () => {
   });
 
   it("should store data in MongoDB", async () => {
-    const server = new Hocuspocus({ port: 3001 });
+    const server = new Hocuspocus({ port: 3000 });
     const collection = {
       updateOne: sandbox.stub().resolves(),
     };
@@ -100,7 +111,7 @@ describe("Server", () => {
   });
 
   it("should call connected() with the correct connections count", async () => {
-    const server = new Hocuspocus({ port: 3001 });
+    const server = new Hocuspocus({ port: 3000 });
 
     const connectionsCount = 5;
     server.getConnectionsCount = sandbox.stub().returns(connectionsCount);
@@ -114,7 +125,7 @@ describe("Server", () => {
   });
 
   it("should call onDisconnect() with the correct connections count", async () => {
-    const server = new Hocuspocus({ port: 3001 });
+    const server = new Hocuspocus({ port: 3000 });
 
     const connectionsCount = 3;
     server.getConnectionsCount = sandbox.stub().returns(connectionsCount);
@@ -128,7 +139,7 @@ describe("Server", () => {
   });
 
   it("should close the MongoDB client on destroy", async () => {
-    const server = new Hocuspocus({ port: 3001 });
+    const server = new Hocuspocus({ port: 3000 });
     const closeStub = sandbox.stub(MongoClient.prototype, "close");
 
     await server.onDestroy();
