@@ -12,3 +12,4 @@ TEMP_*
 /.vscode
 /coverage
 /.nyc_output
+/Unnecessary
