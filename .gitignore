@@ -6,9 +6,9 @@ Thumbs.db
 TODO
 TEMP_*
 .srvr*
-node_modules
-Temp
+/node_modules
+/Temp
 .env
-.vscode
-coverage
-.nyc_output
+/.vscode
+/coverage
+/.nyc_output
