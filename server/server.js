@@ -1,14 +1,17 @@
 // import dependencies and initialize express
-const { Hocuspocus } = require("@hocuspocus/server");
+const express = require("express");
+const expressWebsockets = require("express-ws");
+const { Hocuspocus, Server } = require("@hocuspocus/server");
 const { Redis } = require("@hocuspocus/extension-redis");
 const { Database } = require("@hocuspocus/extension-database");
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const { Logger } = require("@hocuspocus/extension-logger");
 const { Doc } = require("yjs");
+const cors = require("cors");
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
 
 // Environment Variables Validation
-// Confirm all environmental variables are present
 const requiredEnv = [
   "DB_PREFIX",
   "DB_USERNAME",
@@ -19,6 +22,7 @@ const requiredEnv = [
   "REDIS_URI",
   "REDIS_PORT",
 ];
+// Confirm all environmental variables are present
 requiredEnv.forEach((variable) => {
   if (!process.env[variable]) {
     throw new Error(`Environment variable ${variable} is required!`);
@@ -26,10 +30,6 @@ requiredEnv.forEach((variable) => {
 });
 
 const uri = `${process.env.DB_PREFIX}${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOSTNAME}`;
-console.log("URI: ", process.env.WS_PORT);
-console.log("URI: ", process.env.DB_PREFIX);
-console.log("URI: ", uri);
-console.log("URI: ", uri.replace(/[\s'"`]+/g, ""));
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const MDBclient = new MongoClient(uri, {
   serverApi: {
@@ -47,16 +47,35 @@ MDBclient.connect().then((client) => {
   collection = db.collection(process.env.COLLECTION_NAME);
 });
 
-const server = new Hocuspocus({
+const server = Server.configure({
+  async onAuthenticate(data) {
+    const { token } = data;
+    console.log("Token: ", token);
+
+    // Example test if a user is authenticated with a token passed from the client
+    if (String(token)) {
+      return;
+    } else if (token === "readpass") {
+      data.connection.readOnly = true;
+      return;
+    } else {
+      throw new Error("Not authorized!");
+    }
+
+    // You can set contextual data to use it in other hooks
+    // return {
+    //   user: {
+    //     id: 1234,
+    //     name: "John",
+    //   },
+    // };
+  },
   port: process.env.WS_PORT,
   extensions: [
     new Redis({
       host: process.env.REDIS_URI,
       port: process.env.REDIS_PORT,
       priority: 10000,
-      onChange: async ({ documentName }) => {
-        console.log("Redis Fetch called");
-      },
     }),
     new Database({
       // Return a Promise to retrieve data …
@@ -105,6 +124,76 @@ const server = new Hocuspocus({
   },
 });
 
-server.listen();
+// Express instance using the express-ws extension
+const { app } = expressWebsockets(express());
+var corsOptions = {
+  origin: "http://localhost:3000",
+};
+app.use(express.json());
+
+app.use(cors(corsOptions));
+
+verifyToken = (req, res, next) => {
+  let token = req.headers["x-access-token"];
+
+  if (!token) {
+    return res.status(403).send({
+      message: "No token provided!",
+    });
+  }
+
+  jwt.verify(token, process.env.SECRET_KEY, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({
+        message: "Unauthorized!",
+      });
+    }
+    req.userId = decoded.id;
+    next();
+  });
+};
+
+// Basic http route
+app.get("/", (request, response) => {
+  response.send("What... Are you doing?");
+});
+
+// Basic http route
+app.post("/api/login", (request, response) => {
+  console.log("request: ", request.body);
+  const user = request.body;
+  if (user["email"] === "asdf@gmail.com" && user["password"]) {
+    console.log("as");
+    var token = jwt.sign({ id: user.id }, process.env.SECRET_KEY, {
+      expiresIn: 86400, // 24 hours
+    });
+    response.status(200).send({
+      email: user["email"],
+      accessToken: token,
+    });
+  } else {
+    response.status(404).send({ message: "Email or password invalid" });
+  }
+});
+
+const userJSON = (user) => {
+  return process.env.user.split(",");
+};
+
+// Hocuspocus ws route
+app.ws(
+  "/api/collaboration/:document",
+  (websocket, request, websocketContext) => {
+    console.log("ws route entered");
+    server.handleConnection(websocket, request, websocketContext);
+  }
+);
+
+// Start the server
+app.listen(process.env.WS_PORT, () =>
+  console.log(`Listening on http://127.0.0.1:${process.env.WS_PORT}`)
+);
+
+// server.listen();
 
 module.exports = server;
