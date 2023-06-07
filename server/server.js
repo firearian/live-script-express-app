@@ -52,7 +52,6 @@ const server = Server.configure({
     const { token } = data;
     console.log("Token: ", token);
 
-    // Example test if a user is authenticated with a token passed from the client
     if (String(token)) {
       return;
     } else if (token === "readpass") {
@@ -61,7 +60,6 @@ const server = Server.configure({
     } else {
       throw new Error("Not authorized!");
     }
-
     // You can set contextual data to use it in other hooks
     // return {
     //   user: {
