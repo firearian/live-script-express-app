@@ -4,69 +4,43 @@ const expressWebsockets = require("express-ws");
 const { Hocuspocus, Server } = require("@hocuspocus/server");
 const { Redis } = require("@hocuspocus/extension-redis");
 const { Database } = require("@hocuspocus/extension-database");
-const { MongoClient, ServerApiVersion } = require("mongodb");
 const { Logger } = require("@hocuspocus/extension-logger");
 const { Doc } = require("yjs");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+const { connectDB, getItem, getCollection } = require("./database");
+const { validateUser } = require("./auth");
 require("dotenv").config();
+require("dotenv-safe").config();
 
-// Environment Variables Validation
-const requiredEnv = [
-  "DB_PREFIX",
-  "DB_USERNAME",
-  "DB_PASSWORD",
-  "DB_HOSTNAME",
-  "DB_NAME",
-  "COLLECTION_NAME",
-  "REDIS_URI",
-  "REDIS_PORT",
+// create random colour for user
+const colors = [
+  "#958DF1",
+  "#F98181",
+  "#FBBC88",
+  "#FAF594",
+  "#70CFF8",
+  "#94FADB",
+  "#B9F18D",
 ];
-// Confirm all environmental variables are present
-requiredEnv.forEach((variable) => {
-  if (!process.env[variable]) {
-    throw new Error(`Environment variable ${variable} is required!`);
-  }
-});
 
-const uri = `${process.env.DB_PREFIX}${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOSTNAME}`;
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const MDBclient = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-  // poolSize option is not supported in the free MongoDB versions
-  // poolSize: 10,
-});
+// Connect to DB on startup
+connectDB()
+  .then(() => console.log("Connected to DB"))
+  .catch((err) => console.error(err));
 
-let collection;
-MDBclient.connect().then((client) => {
-  const db = client.db(process.env.DB_NAME);
-  collection = db.collection(process.env.COLLECTION_NAME);
-});
+const getRandomElement = (list) =>
+  list[Math.floor(Math.random() * list.length)];
+const getRandomColor = () => getRandomElement(colors);
 
 const server = Server.configure({
   async onAuthenticate(data) {
     const { token } = data;
-    console.log("Token: ", token);
-
-    if (String(token)) {
-      return;
-    } else if (token === "readpass") {
-      data.connection.readOnly = true;
-      return;
-    } else {
-      throw new Error("Not authorized!");
-    }
-    // You can set contextual data to use it in other hooks
-    // return {
-    //   user: {
-    //     id: 1234,
-    //     name: "John",
-    //   },
-    // };
+    const decoded = jwt.verify(
+      token.replaceAll('"', ""),
+      process.env.SECRET_KEY
+    );
+    return { name: decoded.name };
   },
   port: process.env.WS_PORT,
   extensions: [
@@ -79,8 +53,9 @@ const server = Server.configure({
       // Return a Promise to retrieve data …
       fetch: async ({ documentName }) => {
         try {
+          console.log("fetch async");
           const document = documentName
-            ? await collection.findOne({ name: documentName })
+            ? await getItem("name", documentName)
             : null;
           const data = document?.data?.buffer;
           console.log("Mongo DB Data fetched: ", data);
@@ -92,13 +67,25 @@ const server = Server.configure({
       },
 
       // … and a Promise to store data:
-      store: async ({ documentName, state }) => {
+      store: async (data) => {
+        const {
+          documentName,
+          state,
+          context: { name },
+        } = data;
         try {
-          await collection.updateOne(
-            { name: documentName },
-            { $set: { name: documentName, data: state } },
-            { upsert: true }
-          );
+          const collection = getCollection();
+          await collection
+            .updateOne(
+              { name: documentName },
+              { $set: { name: documentName, data: state } },
+              { upsert: true }
+            )
+            .updateOne(
+              { user: name },
+              { $addToSet: { documents: documentName } },
+              { upsert: true }
+            );
           console.log("Mongo DB Data stored: ", documentName);
         } catch (error) {
           console.error("Error storing data to MongoDB", error);
@@ -132,7 +119,7 @@ app.use(express.json());
 app.use(cors(corsOptions));
 
 verifyToken = (req, res, next) => {
-  let token = req.headers["x-access-token"];
+  const token = req.headers["x-access-token"];
 
   if (!token) {
     return res.status(403).send({
@@ -159,24 +146,30 @@ app.get("/", (request, response) => {
 // Basic http route
 app.post("/api/login", (request, response) => {
   console.log("request: ", request.body);
-  const user = request.body;
-  if (user["email"] === "asdf@gmail.com" && user["password"]) {
-    console.log("as");
-    var token = jwt.sign({ id: user.id }, process.env.SECRET_KEY, {
-      expiresIn: 86400, // 24 hours
-    });
-    response.status(200).send({
-      email: user["email"],
-      accessToken: token,
-    });
-  } else {
-    response.status(404).send({ message: "Email or password invalid" });
-  }
+  const { email, password } = request.body;
+  return validateUser(email, password).then((user) => {
+    console.log("Validated User: ", user);
+    if (user) {
+      var token = jwt.sign({ name: email }, process.env.SECRET_KEY, {
+        expiresIn: 86400, // 24 hours
+      });
+      // res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'strict' });
+      response.cookie("token", token, { httpOnly: true });
+      console.log("User is valid");
+      response.status(200).send({
+        user: {
+          name: user["user"],
+          color: getRandomColor(),
+          documents: user["documents"],
+        },
+        accessToken: token,
+      });
+    } else {
+      console.log("fails");
+      response.status(400).send({ message: "Email or password invalid" });
+    }
+  });
 });
-
-const userJSON = (user) => {
-  return process.env.user.split(",");
-};
 
 // Hocuspocus ws route
 app.ws(
