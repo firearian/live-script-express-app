@@ -10,7 +10,6 @@ const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const { connectDB, getItem, getCollection } = require("./database");
 const { validateUser } = require("./auth");
-require("dotenv").config();
 require("dotenv-safe").config();
 
 // create random colour for user

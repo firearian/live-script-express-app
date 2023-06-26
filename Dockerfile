@@ -4,6 +4,7 @@ RUN mkdir /app
 WORKDIR /app
 
 COPY package.json .
+COPY .env.example .
 COPY server ./server
 COPY public ./public
 RUN npm install
