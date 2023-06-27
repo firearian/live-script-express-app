@@ -115,7 +115,7 @@ const server = Server.configure({
 const { app } = expressWebsockets(express());
 var corsOptions = {
   origin:
-    "https://649a59c91636a4346b534cc0--gregarious-marshmallow-0e8779.netlify.app/",
+    "https://649a59c91636a4346b534cc0--gregarious-marshmallow-0e8779.netlify.app",
 };
 app.use(express.json());
 
