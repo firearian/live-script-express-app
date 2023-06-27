@@ -114,7 +114,8 @@ const server = Server.configure({
 // Express instance using the express-ws extension
 const { app } = expressWebsockets(express());
 var corsOptions = {
-  origin: "http://localhost:3000",
+  origin:
+    "https://649a59c91636a4346b534cc0--gregarious-marshmallow-0e8779.netlify.app/",
 };
 app.use(express.json());
 
