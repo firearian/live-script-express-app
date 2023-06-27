@@ -8,7 +8,7 @@ const validateUser = async (email, pass) => {
 
   try {
     console.log("Before");
-    const currentCollection = getCollection();
+    getCollection();
     console.log("After");
     return await getItem("user", email).then((record) => {
       if (record.password === pass) {
@@ -19,7 +19,6 @@ const validateUser = async (email, pass) => {
     console.error("Error validating user: ", error);
     throw error;
   }
-  return false;
 };
 
 module.exports = { validateUser };

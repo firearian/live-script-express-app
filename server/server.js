@@ -1,14 +1,18 @@
 // import dependencies and initialize express
 const express = require("express");
 const expressWebsockets = require("express-ws");
-const { Hocuspocus, Server } = require("@hocuspocus/server");
+const { Server } = require("@hocuspocus/server");
 const { Redis } = require("@hocuspocus/extension-redis");
 const { Database } = require("@hocuspocus/extension-database");
 const { Logger } = require("@hocuspocus/extension-logger");
-const { Doc } = require("yjs");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
-const { connectDB, getItem, getCollection } = require("./database");
+const {
+  connectDB,
+  getItem,
+  getCollection,
+  disconnectClient,
+} = require("./database");
 const { validateUser } = require("./auth");
 require("dotenv-safe").config();
 
@@ -74,17 +78,16 @@ const server = Server.configure({
         } = data;
         try {
           const collection = getCollection();
-          await collection
-            .updateOne(
-              { name: documentName },
-              { $set: { name: documentName, data: state } },
-              { upsert: true }
-            )
-            .updateOne(
-              { user: name },
-              { $addToSet: { documents: documentName } },
-              { upsert: true }
-            );
+          await collection.updateOne(
+            { name: documentName },
+            { $set: { name: documentName, data: state } },
+            { upsert: true }
+          );
+          await collection.updateOne(
+            { user: name },
+            { $addToSet: { documents: documentName } },
+            { upsert: true }
+          );
           console.log("Mongo DB Data stored: ", documentName);
         } catch (error) {
           console.error("Error storing data to MongoDB", error);
@@ -104,7 +107,7 @@ const server = Server.configure({
   },
 
   async onDestroy() {
-    MDBclient.close();
+    disconnectClient();
   },
 });
 
@@ -116,26 +119,6 @@ var corsOptions = {
 app.use(express.json());
 
 app.use(cors(corsOptions));
-
-verifyToken = (req, res, next) => {
-  const token = req.headers["x-access-token"];
-
-  if (!token) {
-    return res.status(403).send({
-      message: "No token provided!",
-    });
-  }
-
-  jwt.verify(token, process.env.SECRET_KEY, (err, decoded) => {
-    if (err) {
-      return res.status(401).send({
-        message: "Unauthorized!",
-      });
-    }
-    req.userId = decoded.id;
-    next();
-  });
-};
 
 // Basic http route
 app.get("/", (request, response) => {

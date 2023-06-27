@@ -1,5 +1,5 @@
 const { MongoClient, ServerApiVersion } = require("mongodb");
-require("dotenv-safe").config();
+require("dotenv").config();
 
 let collection;
 const uri = `${process.env.DB_PREFIX}${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOSTNAME}`;
@@ -26,6 +26,10 @@ const getCollection = () => {
   return collection;
 };
 
+const disconnectClient = () => {
+  MDBclient.close();
+};
+
 const getItem = async (field, value) => {
   return await collection.findOne({ [field]: value }).then((record) => {
     if (!record) {
@@ -43,4 +47,4 @@ const getItem = async (field, value) => {
 //   );
 // };
 
-module.exports = { connectDB, getCollection, getItem };
+module.exports = { connectDB, getCollection, getItem, disconnectClient };
