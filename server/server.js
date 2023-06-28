@@ -113,9 +113,20 @@ const server = Server.configure({
 
 // Express instance using the express-ws extension
 const { app } = expressWebsockets(express());
+var whitelist = [
+  "https://649a59c91636a4346b534cc0--gregarious-marshmallow-0e8779.netlify.app",
+  "http://localhost:3000",
+];
 var corsOptions = {
-  origin:
-    "https://649a59c91636a4346b534cc0--gregarious-marshmallow-0e8779.netlify.app",
+  origin: function (origin, callback) {
+    if (whitelist.indexOf(origin) !== -1 || !origin) {
+      // remove the !origin after testing
+      callback(null, true);
+    } else {
+      console.log(origin);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
 };
 app.use(express.json());
 
@@ -128,20 +139,28 @@ app.get("/", (request, response) => {
 
 // Basic http route
 app.post("/api/login", (request, response) => {
+  if (!getCollection()) {
+    return response
+      .status(500)
+      .send({ message: "Server Error. Database not connected" });
+  }
   console.log("request: ", request.body);
   const { email, password } = request.body;
   return validateUser(email, password).then((user) => {
     console.log("Validated User: ", user);
     if (user) {
       var token = jwt.sign({ name: email }, process.env.SECRET_KEY, {
-        expiresIn: 86400, // 24 hours
+        expiresIn: 3600, // 24 hours
       });
       // res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'strict' });
       response.cookie("token", token, { httpOnly: true });
       console.log("User is valid");
+      const username =
+        user["user"].charAt(0).toUpperCase() +
+        user["user"].replace(/@.*/g, "").slice(1);
       response.status(200).send({
         user: {
-          name: user["user"],
+          name: username,
           color: getRandomColor(),
           documents: user["documents"],
         },

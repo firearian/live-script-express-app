@@ -13,3 +13,5 @@ TEMP_*
 /coverage
 /.nyc_output
 /Unnecessary
+*.crt
+*.key
