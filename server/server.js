@@ -14,27 +14,15 @@ const {
   disconnectClient,
 } = require("./database");
 const { validateUser } = require("./auth");
+const { initColours, getRandomColor } = require("./colours");
 require("dotenv-safe").config();
-
-// create random colour for user
-const colors = [
-  "#958DF1",
-  "#F98181",
-  "#FBBC88",
-  "#FAF594",
-  "#70CFF8",
-  "#94FADB",
-  "#B9F18D",
-];
 
 // Connect to DB on startup
 connectDB()
   .then(() => console.log("Connected to DB"))
   .catch((err) => console.error(err));
 
-const getRandomElement = (list) =>
-  list[Math.floor(Math.random() * list.length)];
-const getRandomColor = () => getRandomElement(colors);
+initColours();
 
 const server = Server.configure({
   async onAuthenticate(data) {
@@ -152,7 +140,7 @@ app.post("/api/login", (request, response) => {
       var token = jwt.sign({ name: email }, process.env.SECRET_KEY, {
         expiresIn: 3600, // 24 hours
       });
-      // res.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'strict' });
+      // response.cookie('token', token, { httpOnly: true, secure: true, sameSite: 'strict' });
       response.cookie("token", token, { httpOnly: true });
       console.log("User is valid");
       const username =

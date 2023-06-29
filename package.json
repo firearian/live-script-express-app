@@ -47,6 +47,7 @@
     "ibm-cloud-env": "^0",
     "jsonwebtoken": "^9.0.0",
     "mongodb": "^5.6.0",
+    "pleasejs": "^0.4.2",
     "redis": "^4.6.7",
     "swagger-ui-express": "^4.1.4",
     "yjs": "^13.6.1"
