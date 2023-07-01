@@ -14,15 +14,13 @@ const {
   disconnectClient,
 } = require("./database");
 const { validateUser } = require("./auth");
-const { initColours, getRandomColor } = require("./colours");
+const { getRandomColor } = require("./colours");
 require("dotenv-safe").config();
 
 // Connect to DB on startup
 connectDB()
   .then(() => console.log("Connected to DB"))
   .catch((err) => console.error(err));
-
-initColours();
 
 const server = Server.configure({
   async onAuthenticate(data) {
@@ -43,17 +41,19 @@ const server = Server.configure({
     new Database({
       // Return a Promise to retrieve data …
       fetch: async ({ documentName }) => {
-        try {
-          console.log("fetch async");
-          const document = documentName
-            ? await getItem("name", documentName)
-            : null;
-          const data = document?.data?.buffer;
-          console.log("Mongo DB Data fetched: ", data);
-          return document ? data : null;
-        } catch (error) {
-          console.error("Error fetching data from MongoDB", error);
-          return null;
+        if (documentName) {
+          try {
+            console.log("fetch async");
+            const document = documentName
+              ? await getItem("name", documentName)
+              : null;
+            const data = document?.data?.buffer;
+            console.log("Mongo DB Data fetched: ", data);
+            return document ? data : null;
+          } catch (error) {
+            console.error("Error fetching data from MongoDB", error);
+            return null;
+          }
         }
       },
 
@@ -65,18 +65,20 @@ const server = Server.configure({
           context: { name },
         } = data;
         try {
-          const collection = getCollection();
-          await collection.updateOne(
-            { name: documentName },
-            { $set: { name: documentName, data: state } },
-            { upsert: true }
-          );
-          await collection.updateOne(
-            { user: name },
-            { $addToSet: { documents: documentName } },
-            { upsert: true }
-          );
-          console.log("Mongo DB Data stored: ", documentName);
+          if (documentName && state.length > 2) {
+            const collection = getCollection();
+            await collection.updateOne(
+              { name: documentName },
+              { $set: { name: documentName, data: state } },
+              { upsert: true }
+            );
+            await collection.updateOne(
+              { user: name },
+              { $addToSet: { documents: documentName } },
+              { upsert: true }
+            );
+            console.log("Mongo DB Data stored: ", documentName);
+          }
         } catch (error) {
           console.error("Error storing data to MongoDB", error);
         }
