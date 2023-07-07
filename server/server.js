@@ -104,9 +104,12 @@ const server = Server.configure({
 // Express instance using the express-ws extension
 const { app } = expressWebsockets(express());
 var whitelist = [
-  "https://649a59c91636a4346b534cc0--gregarious-marshmallow-0e8779.netlify.app",
+  "https://main--gregarious-marshmallow-0e8779.netlify.app",
+  "https://gregarious-marshmallow-0e8779.netlify.app",
+  /netlify\.app$/,
   "http://localhost:3000",
 ];
+console.log(whitelist);
 var corsOptions = {
   origin: function (origin, callback) {
     if (whitelist.indexOf(origin) !== -1 || !origin) {
